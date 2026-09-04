@@ -1,0 +1,26 @@
+CryptoShield - Phan Key Exchange cua Thang
+Kiem thu lan cuoi: 2026-08-31
+
+Moi truong:
+- Python: 3.13.5
+- cryptography: 46.0.4
+- Platform: Linux-6.18.35-x86_64-with-glibc2.41
+
+Lenh:
+  python -m unittest discover -s tests -v
+
+Ket qua:
+- 18/18 test PASS
+- ECDH P-256 va X25519: hai phia tao cung shared secret
+- HKDF-SHA-256: qua RFC 5869 test vector, context separation va transcript framing
+- ML-KEM-512/768/1024: dung kich thuoc FIPS 203, round-trip, NIST ACVP spot-check,
+  implicit rejection, tu choi public key khong canonical va private key bi sua hash nhung
+- Tich hop ECDH/ML-KEM -> transcript hash -> HKDF -> khoa AES-256 32 byte: PASS
+
+Kiem tra bo sung:
+- python -m compileall: PASS
+- python demo_key_exchange.py: PASS
+
+Luu y:
+ml_kem.py la ban tham chieu Python phuc vu hoc tap, khong constant-time va khong phai
+module FIPS-validated; khong su dung de bao ve bi mat trong he thong san xuat.
