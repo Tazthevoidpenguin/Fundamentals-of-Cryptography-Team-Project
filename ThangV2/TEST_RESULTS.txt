@@ -1,0 +1,24 @@
+Thang Hybrid Key Exchange - Final Test Results
+Suite: P256-ML768
+Python: Python 3.13.5
+
+test_private_scalar_one_maps_to_generator (test_classical_kex.P256Tests.test_private_scalar_one_maps_to_generator) ... ok
+test_public_from_private_round_trip (test_classical_kex.P256Tests.test_public_from_private_round_trip) ... ok
+test_rejects_invalid_compressed_point (test_classical_kex.P256Tests.test_rejects_invalid_compressed_point) ... ok
+test_two_sides_derive_same_secret (test_classical_kex.P256Tests.test_two_sides_derive_same_secret) ... ok
+test_header_tampering_breaks_transcript_check (test_hybrid_kex.HybridKexTests.test_header_tampering_breaks_transcript_check) ... ok
+test_package_header_aad_contains_no_session_key (test_hybrid_kex.HybridKexTests.test_package_header_aad_contains_no_session_key) ... ok
+test_sender_receiver_get_same_32_byte_session_key (test_hybrid_kex.HybridKexTests.test_sender_receiver_get_same_32_byte_session_key) ... ok
+test_wrong_receiver_private_key_is_rejected (test_hybrid_kex.HybridKexTests.test_wrong_receiver_private_key_is_rejected) ... ok
+test_hybrid_output_is_32_bytes_and_binds_both_secrets (test_kdf.HKDFTests.test_hybrid_output_is_32_bytes_and_binds_both_secrets) ... ok
+test_rfc5869_sha256_case_1 (test_kdf.HKDFTests.test_rfc5869_sha256_case_1) ... ok
+test_transcript_framing_is_unambiguous (test_kdf.HKDFTests.test_transcript_framing_is_unambiguous) ... ok
+test_only_mlkem768_sizes (test_ml_kem.MLKEM768Tests.test_only_mlkem768_sizes) ... ok
+test_public_key_can_be_recovered_from_private_key (test_ml_kem.MLKEM768Tests.test_public_key_can_be_recovered_from_private_key) ... ok
+test_round_trip (test_ml_kem.MLKEM768Tests.test_round_trip) ... ok
+test_tampered_ciphertext_uses_implicit_rejection (test_ml_kem.MLKEM768Tests.test_tampered_ciphertext_uses_implicit_rejection) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.181s
+
+OK

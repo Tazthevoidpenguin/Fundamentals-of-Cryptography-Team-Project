@@ -1,0 +1,8 @@
+Algorithm: P256-ML768
+P-256 public key: 33 bytes
+ML-KEM-768 public key: 1184 bytes
+ML-KEM-768 ciphertext: 1088 bytes
+Session key: 32 bytes
+Sender/receiver key match: True
+Session-key fingerprint: 8a3ee88f928530b8
+AAD size: 2526 bytes

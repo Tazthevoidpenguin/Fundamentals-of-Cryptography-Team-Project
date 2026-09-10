@@ -1,11 +1,14 @@
-from package import (HybridKexResult,PackageHeader,SecurePackage,
+from Encryp_Package.package import (PackageHeader,SecurePackage,
                      get_AAD,enc_package,PACKAGE_VERSION,GROUP_ID,dec_package
                      )
-from signature import sign_pack_digest,verify_ecdsa
-from hashing import hash_bytes,package_digest
-from aes_gcm import EncData, enc_bytes,dec_bytes
+from Encryp_Package.signature import sign_pack_digest,verify_ecdsa
+from Encryp_Package.hashing import hash_bytes,package_digest
+from Encryp_Package.aes_gcm import EncData, enc_bytes,dec_bytes
 from pathlib import Path
 import uuid
+from ThangV2.hybrid_kex import (
+    HybridKexResult,generate_receiver_keys,sender_establish,receiver_establish
+)
 
 def seal_file(inp_path:str, kex_rs:HybridKexResult, pri_key) -> bytes:
     path=Path(inp_path)
@@ -78,8 +81,7 @@ def open_file(pack_bytes:bytes,kex_rs: HybridKexResult, pub_key) -> bytes:
     return plaintext #tra bytes cua file da qua check
 
 def main():
-    from hybrid_kex_stub import establish_hybrid_demo
-    from signature import gen_ecdsa_key
+    from Encryp_Package.signature import gen_ecdsa_key
 
 
     """
@@ -90,18 +92,25 @@ def main():
     pack_path=Path("encrypted_file.json")
     restored_path=Path("check.txt")
 
-    session = establish_hybrid_demo() #doan nay de Thang gui r t code lai
+    
+    recei_ecdh, recei_mlkem = generate_receiver_keys() #tao key
+    sender_kexrs=sender_establish(recei_ecdh.public_key,recei_mlkem.public_key)
+
     sign_keys = gen_ecdsa_key()
 
-    package_bytes = seal_file(inp_path,session.sender,sign_keys.pri_key)
+    package_bytes = seal_file(inp_path,sender_kexrs,sign_keys.pri_key)
 
     #ghi output
     pack_path.write_bytes(package_bytes)
 
     input("Patch file pls")
     patched_pack=pack_path.read_bytes()
+
+    recei_header = dec_package(patched_pack).header
+    recei_kexrs=receiver_establish(recei_ecdh.private_key,recei_mlkem.private_key,recei_header)
+
     #restore pack
-    restored_data=open_file(patched_pack,session.receiver,sign_keys.pub_key)
+    restored_data=open_file(patched_pack,recei_kexrs,sign_keys.pub_key)
     restored_path.write_bytes(restored_data)
 
 

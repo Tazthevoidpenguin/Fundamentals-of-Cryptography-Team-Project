@@ -14,6 +14,7 @@ TAG=16
 TRANSCRIPT_HASH_SIZE=32
 MAX_PACKAGE_SIZE=200 * 1024 * 1024  #200 chunk 1024*1024
 
+"""
 @dataclass
 class HybridKexResult:
     algorithm_id: str
@@ -28,7 +29,7 @@ class HybridKexResult:
     receiver_ecdh_public: bytes
     receiver_mlkem_public: bytes
     mlkem_ciphertext: bytes
-
+"""
 
 @dataclass
 class PackageHeader:

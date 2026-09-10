@@ -1,20 +1,11 @@
-"""Educational pure-Python implementation of ML-KEM (FIPS 203).
+"""Hand-written educational ML-KEM-768 implementation (FIPS 203 structure).
 
-The module implements ML-KEM-512, ML-KEM-768 and ML-KEM-1024 so the
-CryptoShield project can demonstrate key generation, encapsulation and
-decapsulation without requiring a native post-quantum library.
+Only ML-KEM-768 is kept because the revised coursework design uses one hybrid
+suite: P-256 + ML-KEM-768. The implementation uses only Python's standard
+library (SHA-3/SHAKE, HMAC and OS randomness).
 
-Security notice
----------------
-This is a readable reference implementation for coursework and benchmarking.
-Python cannot provide the constant-time behavior, secure memory handling or
-validated entropy path expected from production cryptographic code. Do not use
-this module to protect real secrets. For deployment, use a maintained and
-validated cryptographic provider.
-
-The public API intentionally exposes only the standardized randomized
-operations. Optional deterministic inputs are provided solely for tests and
-reproducible experiments.
+Security notice: this is readable coursework code, not constant-time or
+FIPS-validated production cryptography.
 """
 
 from __future__ import annotations
@@ -23,7 +14,7 @@ import hashlib
 import hmac
 import secrets
 from dataclasses import dataclass
-from typing import Final, Iterable, Sequence
+from typing import Final, Sequence
 
 Q: Final[int] = 3329
 N: Final[int] = 256
@@ -33,8 +24,6 @@ SHARED_SECRET_SIZE: Final[int] = 32
 
 @dataclass(frozen=True)
 class MLKEMParameters:
-    """Parameter set and serialized object sizes from FIPS 203."""
-
     name: str
     k: int
     eta1: int
@@ -47,42 +36,17 @@ class MLKEMParameters:
     shared_secret_bytes: int = SHARED_SECRET_SIZE
 
 
-PARAMETER_SETS: Final[dict[str, MLKEMParameters]] = {
-    "ML-KEM-512": MLKEMParameters(
-        name="ML-KEM-512",
-        k=2,
-        eta1=3,
-        eta2=2,
-        du=10,
-        dv=4,
-        public_key_bytes=800,
-        private_key_bytes=1632,
-        ciphertext_bytes=768,
-    ),
-    "ML-KEM-768": MLKEMParameters(
-        name="ML-KEM-768",
-        k=3,
-        eta1=2,
-        eta2=2,
-        du=10,
-        dv=4,
-        public_key_bytes=1184,
-        private_key_bytes=2400,
-        ciphertext_bytes=1088,
-    ),
-    "ML-KEM-1024": MLKEMParameters(
-        name="ML-KEM-1024",
-        k=4,
-        eta1=2,
-        eta2=2,
-        du=11,
-        dv=5,
-        public_key_bytes=1568,
-        private_key_bytes=3168,
-        ciphertext_bytes=1568,
-    ),
-}
-
+PARAMS: Final[MLKEMParameters] = MLKEMParameters(
+    name="ML-KEM-768",
+    k=3,
+    eta1=2,
+    eta2=2,
+    du=10,
+    dv=4,
+    public_key_bytes=1184,
+    private_key_bytes=2400,
+    ciphertext_bytes=1088,
+)
 
 @dataclass(frozen=True)
 class MLKEMKeyPair:
@@ -98,26 +62,6 @@ class MLKEMEncapsulation:
 
     ciphertext: bytes
     shared_secret: bytes
-
-
-def _normalize_variant(variant: str | int) -> str:
-    value = str(variant).upper().replace("_", "-").strip()
-    aliases = {
-        "512": "ML-KEM-512",
-        "768": "ML-KEM-768",
-        "1024": "ML-KEM-1024",
-        "MLKEM-512": "ML-KEM-512",
-        "MLKEM-768": "ML-KEM-768",
-        "MLKEM-1024": "ML-KEM-1024",
-        "ML-KEM-512": "ML-KEM-512",
-        "ML-KEM-768": "ML-KEM-768",
-        "ML-KEM-1024": "ML-KEM-1024",
-    }
-    try:
-        return aliases[value]
-    except KeyError as exc:
-        supported = ", ".join(PARAMETER_SETS)
-        raise ValueError(f"Unsupported ML-KEM variant {variant!r}; choose {supported}.") from exc
 
 
 def _h(data: bytes) -> bytes:
@@ -569,73 +513,73 @@ def _ml_kem_decaps_internal(params: MLKEMParameters, private_key: bytes, ciphert
     return candidate_secret if hmac.compare_digest(ciphertext, reconstructed_ciphertext) else rejection_secret
 
 
-class MLKEM:
-    """High-level ML-KEM interface for one FIPS 203 parameter set."""
 
-    def __init__(self, variant: str | int = "ML-KEM-768") -> None:
-        self.params = PARAMETER_SETS[_normalize_variant(variant)]
+def sizes() -> dict[str, int]:
+    """Serialized object sizes for ML-KEM-768, in bytes."""
 
-    @property
-    def name(self) -> str:
-        return self.params.name
-
-    def sizes(self) -> dict[str, int]:
-        """Return serialized sizes in bytes for benchmark and UI code."""
-
-        return {
-            "public_key": self.params.public_key_bytes,
-            "private_key": self.params.private_key_bytes,
-            "ciphertext": self.params.ciphertext_bytes,
-            "shared_secret": self.params.shared_secret_bytes,
-        }
-
-    def keygen(self, seed: bytes | None = None) -> MLKEMKeyPair:
-        """Generate an ML-KEM key pair.
-
-        ``seed`` is an optional 64-byte deterministic test hook containing
-        ``d || z``.  Omit it in normal use so the operating system CSPRNG is
-        used.
-        """
-
-        if seed is None:
-            seed = secrets.token_bytes(64)
-        seed = bytes(seed)
-        if len(seed) != 64:
-            raise ValueError("Deterministic ML-KEM keygen seed must be exactly 64 bytes (d || z).")
-        return _ml_kem_keygen_internal(self.params, seed[:32], seed[32:])
-
-    def encapsulate(
-        self,
-        public_key: bytes,
-        randomness: bytes | None = None,
-    ) -> MLKEMEncapsulation:
-        """Encapsulate to ``public_key`` and return ciphertext plus shared secret.
-
-        ``randomness`` is an optional 32-byte deterministic test hook.  Omit it
-        in normal use.
-        """
-
-        if randomness is None:
-            randomness = secrets.token_bytes(32)
-        return _ml_kem_encaps_internal(self.params, bytes(public_key), bytes(randomness))
-
-    def decapsulate(self, private_key: bytes, ciphertext: bytes) -> bytes:
-        """Decapsulate a ciphertext, using implicit rejection for invalid ciphertexts."""
-
-        return _ml_kem_decaps_internal(self.params, bytes(private_key), bytes(ciphertext))
+    return {
+        "public_key": PARAMS.public_key_bytes,
+        "private_key": PARAMS.private_key_bytes,
+        "ciphertext": PARAMS.ciphertext_bytes,
+        "shared_secret": PARAMS.shared_secret_bytes,
+    }
 
 
-def available_variants() -> tuple[str, ...]:
-    """Return the supported ML-KEM parameter-set names."""
+def keygen(seed: bytes | None = None) -> MLKEMKeyPair:
+    """Generate an ML-KEM-768 key pair.
 
-    return tuple(PARAMETER_SETS)
+    ``seed`` is an optional 64-byte deterministic test hook (d || z). Omit it
+    in normal use so the operating-system CSPRNG is used.
+    """
+
+    if seed is None:
+        seed = secrets.token_bytes(64)
+    seed = bytes(seed)
+    if len(seed) != 64:
+        raise ValueError("ML-KEM-768 keygen seed must be exactly 64 bytes (d || z).")
+    return _ml_kem_keygen_internal(PARAMS, seed[:32], seed[32:])
+
+
+def encapsulate(public_key: bytes, randomness: bytes | None = None) -> MLKEMEncapsulation:
+    """Encapsulate to an ML-KEM-768 public key."""
+
+    if randomness is None:
+        randomness = secrets.token_bytes(32)
+    randomness = bytes(randomness)
+    if len(randomness) != 32:
+        raise ValueError("ML-KEM-768 encapsulation randomness must be exactly 32 bytes.")
+    return _ml_kem_encaps_internal(PARAMS, bytes(public_key), randomness)
+
+
+def decapsulate(private_key: bytes, ciphertext: bytes) -> bytes:
+    """Decapsulate an ML-KEM-768 ciphertext using implicit rejection."""
+
+    return _ml_kem_decaps_internal(PARAMS, bytes(private_key), bytes(ciphertext))
+
+
+def public_from_private(private_key: bytes) -> bytes:
+    """Extract the embedded public key from a serialized ML-KEM-768 private key."""
+
+    private_key = bytes(private_key)
+    if len(private_key) != PARAMS.private_key_bytes:
+        raise ValueError(f"ML-KEM-768 private key must be {PARAMS.private_key_bytes} bytes.")
+    pke_private_length = 384 * PARAMS.k
+    start = pke_private_length
+    end = start + PARAMS.public_key_bytes
+    public_key = private_key[start:end]
+    stored_hash = private_key[end:end + 32]
+    if not hmac.compare_digest(_h(public_key), stored_hash):
+        raise ValueError("ML-KEM-768 private key failed its embedded public-key hash check.")
+    return public_key
 
 
 __all__ = [
-    "MLKEM",
     "MLKEMEncapsulation",
     "MLKEMKeyPair",
-    "MLKEMParameters",
-    "PARAMETER_SETS",
-    "available_variants",
+    "PARAMS",
+    "decapsulate",
+    "encapsulate",
+    "keygen",
+    "public_from_private",
+    "sizes",
 ]
